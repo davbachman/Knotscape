@@ -1,0 +1,15 @@
+{
+  "name": "knotscape-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8000 --directory web",
+    "build": "python3 scripts/package.py && node scripts/standalone.mjs",
+    "build:wasm": "python3 scripts/build_wasm.py",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

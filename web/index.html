@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f2">
+  <meta name="description" content="KnotScape in your browser: knot tables, diagrams, polynomials, hyperbolic geometry, and group representations. All calculations stay on your device.">
+  <title>KnotScape · Browser workbench</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./"><img src="icon.svg" alt="" width="37" height="37"><span>KnotScape<small>BROWSER WORKBENCH</small></span></a>
+    <div class="header-caption">A space to explore knots.</div>
+    <nav aria-label="Workspace"><button id="import-button">↑ Import</button><button id="save-session">Save workspace</button><button id="help-button" class="round" aria-label="Help and credits">?</button></nav>
+    <input id="file-input" type="file" accept=".txt,.dt,.json,.lsd" hidden>
+  </header>
+  <main class="workspace">
+    <aside class="library panel">
+      <div class="panel-heading"><span class="eyebrow">THE KNOT TABLES</span><span class="tag">≤ 16 crossings</span></div>
+      <h1>Find your next knot.</h1>
+      <p class="muted small">The Hoste–Thistlethwaite tables, now at your fingertips.</p>
+      <label class="field-label">Crossings</label><div id="crossings" class="crossing-grid" aria-label="Crossing number"></div>
+      <div class="segmented" id="knot-type"><button data-type="a" class="active" aria-pressed="true">Alternating</button><button data-type="n" aria-pressed="false">Nonalternating</button></div>
+      <form id="table-search" class="index-search"><label for="table-index" class="sr-only">Knot index in this table</label><span id="index-prefix">4a</span><input id="table-index" type="number" min="1" value="1" required><button type="submit" aria-label="Go to knot index">→</button></form>
+      <div class="list-heading"><span id="table-count">1 knot</span><button id="random-knot" class="text-button">Surprise me →</button></div>
+      <div id="knot-list" class="knot-list" aria-label="Knot entries"></div>
+      <div class="pagination"><button id="previous-page" aria-label="Previous table page">←</button><span id="page-label"></span><button id="next-page" aria-label="Next table page">→</button></div>
+      <details class="range-picker"><summary>Load a range of knots</summary><div><label>From<input id="range-first" type="number" min="1" value="1"></label><label>To<input id="range-last" type="number" min="1" value="1"></label></div><button id="load-range">Add range to workspace</button></details><div class="library-footer"><span class="status-dot"></span><div>Calculated on your device<small>No computation server. No uploads.</small></div></div>
+    </aside>
+
+    <section class="center-column">
+      <div class="canvas-heading"><div><div class="eyebrow">CURRENT DIAGRAM</div><h2 id="knot-title">Figure-eight knot <span>4a1</span></h2></div><div class="canvas-actions"><button id="mirror-button" title="Switch every crossing">Mirror</button><button id="locate-button" class="button-primary">Identify knot →</button></div></div>
+      <div class="canvas-panel panel">
+        <div class="view-bar" role="tablist" aria-label="Diagram view"><button class="active" data-view="diagram" role="tab" aria-selected="true">Diagram</button><button data-view="draw" role="tab" aria-selected="false">Draw</button><button data-view="horoballs" role="tab" aria-selected="false">Horoballs</button><button data-view="canonical" role="tab" aria-selected="false">Canonical</button><button data-view="ford" role="tab" aria-selected="false">Ford domain</button></div>
+        <div id="diagram-stage" class="diagram-stage"><div class="stage-watermark">KNOTSCAPE / 01</div><svg id="diagram" viewBox="0 0 640 640" role="img" aria-label="Knot diagram"></svg><div id="stage-message" class="stage-message" hidden></div><div id="diagram-caption" class="diagram-caption">A planar projection. Gaps indicate undercrossings.</div></div>
+        <div id="draw-tools" class="draw-tools" hidden><span id="draw-hint">Click to place vertices. Click the first vertex to close.</span><div><button id="draw-undo">Undo</button><button id="draw-clear">Clear</button><button id="draw-reflect">Reflect</button><button id="draw-alternate">Alternate</button><button id="draw-component">New curve</button><button id="draw-cut">Cut edges</button><button id="draw-reverse">Reverse</button><button id="draw-reverse-all">Reverse all</button><button id="draw-close">Close curve</button><button id="draw-use" class="button-primary">Use this knot</button></div></div>
+        <div id="draw-style" class="draw-tools" hidden><label>Component <select id="draw-selection" aria-label="Selected drawing component"></select></label><label>Color <input id="draw-color" type="color" value="#27725a"></label><label>Width <select id="draw-width"><option>1</option><option>2</option><option selected>4</option><option>6</option><option>8</option><option>12</option></select></label></div><div id="cusp-tools" class="draw-tools" hidden><label for="cutoff">Minimum horoball diameter</label><input id="cutoff" type="number" value="0.15" step="0.01" min="0.03" max="1"><button id="cusp-refresh">Recalculate</button></div>
+        <div class="canvas-footer"><label><input id="labels-toggle" type="checkbox"> Labels</label><div class="zoom-controls"><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><button id="zoom-reset" title="Reset zoom">Fit</button></div><button id="export-svg" class="text-button">Export SVG →</button></div>
+      </div>
+
+      <section class="input-panel panel"><div class="input-heading"><div><span class="eyebrow">YOUR OWN KNOT</span><h3>Start with a code.</h3></div><label for="input-format" class="sr-only">Input format</label><select id="input-format"><option value="dt">DT code</option><option value="records">KnotScape records</option><option value="braid">Braid word</option></select></div>
+        <label for="dt-input" class="sr-only">Knot code</label><textarea id="dt-input" spellcheck="false" rows="2">4 6 8 2</textarea><div class="input-bottom"><span id="input-help">Signed even integers. One knot per line.</span><button id="load-code" class="button-primary">Load knot <span>→</span></button></div>
+      </section>
+      <section id="batch-panel" class="panel batch-panel" hidden><div class="input-heading"><h3>Workspace knots</h3><button id="batch-compute">Compute polynomials for all</button></div><div id="batch-list"></div></section>
+    </section>
+
+    <aside class="inspector panel"><div class="inspector-heading"><span class="eyebrow">LOOK A LITTLE CLOSER</span><h2>Explore the invariants.</h2></div>
+      <div class="analysis-tabs" role="tablist" aria-label="Calculations"><button data-analysis="polynomials" class="active" role="tab" aria-selected="true">Polynomials</button><button data-analysis="geometry" role="tab" aria-selected="false">Geometry</button><button data-analysis="symmetry" role="tab" aria-selected="false">Symmetry</button><button data-analysis="group" role="tab" aria-selected="false">Group</button></div>
+      <div class="stats"><div><span>Crossings in diagram</span><strong id="crossing-stat">4</strong></div><div><span>Determinant</span><strong id="determinant-stat">—</strong></div><div><span>Signature</span><strong id="signature-stat">—</strong></div></div>
+      <div id="analysis-content" class="analysis-content"></div>
+      <div class="export-section"><span class="eyebrow">TAKE IT WITH YOU</span><label for="export-format" class="sr-only">Export format</label><div class="export-row"><select id="export-format"><option value="dt">DT code (.txt)</option><option value="triangulation">SnapPea triangulation</option><option value="postscript">Diagram PostScript</option><option value="ewing">Ewing–Millett code</option><option value="lsd">LinkSmith drawing (.lsd)</option><option value="results">Calculation results (.json)</option></select><button id="export-button" aria-label="Download selected format">↓</button></div></div>
+      <div class="inspector-note">From the work of Jim Hoste and Morwen Thistlethwaite, with modern SnapPea geometry.<button id="about-link" class="text-button">About this port →</button></div>
+    </aside>
+  </main>
+  <section id="results-panel" class="results-panel panel" hidden><div class="input-heading"><h3>Calculation notebook</h3><div><button id="download-notebook">Download</button><button id="clear-notebook">Clear</button></div></div><div id="notebook"></div></section>
+  <footer class="app-footer"><span>Knot theory, with room to experiment.</span><span>WEBASSEMBLY · LOCAL COMPUTATION</span></footer>
+  <div id="status" class="status-bar" role="status" aria-live="polite" hidden><span id="status-text"></span><button id="cancel-job">Cancel</button><button id="dismiss-status" hidden aria-label="Dismiss message">×</button></div>
+  <dialog id="help-dialog"><div class="dialog-heading"><div><span class="eyebrow">KNOTSCAPE IN THE BROWSER</span><h2>A familiar toolbox, a new home.</h2></div><button id="close-help" aria-label="Close help">×</button></div><div class="help-body">
+    <p>Browse the original prime-knot tables through 16 crossings, enter a signed Dowker–Thistlethwaite code, or draw your own polygonal knot. All engines run locally in WebAssembly workers. Your drawings and codes are saved in this browser automatically; “Save workspace” downloads a portable backup.</p>
+    <h3>Getting started</h3><ol><li>Choose a crossing number and an alternating or nonalternating table. Names such as <b>8a11</b> use the Hoste–Thistlethwaite ordering, not Rolfsen ordering.</li><li>Load a DT code such as <code>4 6 8 2</code>. For saved KnotScape files, choose “KnotScape records”: <code>4 1 4 6 8 2</code>.</li><li>Braid letters <code>a, b, c…</code> are generators; capitals are inverses. Try <code>aaa</code> or <code>aBaB</code>.</li><li>In “Draw”, click to add vertices and close the curve. Click a crossing to switch the overpass; drag a vertex to reshape the polygon. Use “New curve” (or right-click) to finish an open arc and begin another. Click an open endpoint to extend or join arcs. Select edges and choose “Cut edges” to split curves; Shift-click selects multiple edges. Double-click a vertex to remove it. Color, width and orientation controls apply to the selected component. Reflect switches every crossing; Alternate makes a closed projection alternating.</li></ol>
+    <h3>Calculations</h3><p>Alexander, Jones, HOMFLY-PT, and Kauffman polynomials; determinant and signature; knot simplification, prime decomposition and table identification; representations into S₅ and branched-cover homology; hyperbolic volume, maximal cusps, symmetry groups, horoballs, canonical cusp sections, and Ford domains. Export diagrams as SVG or PostScript and complements in SnapPea format.</p>
+    <p>Polynomial variable conventions follow the original KnotScape documentation. Signed DT codes choose a handedness convention; a mirrored knot can change Jones, HOMFLY-PT, Kauffman, and signature results. Hyperbolic results are numerical, not interval-certified proofs. An unsuccessful hyperbolic solution is not a proof that a knot is nonhyperbolic.</p>
+    <h3>Compatibility</h3><p>Computational limits follow the original engines (49 crossings, and bridge number at most 5 for group representations); hard jobs can take longer, and can be cancelled. Some engines require a prime, reduced projection: use “Identify knot” to simplify first. The symmetry tab includes individual fixed sets computed from the canonical triangulation. LinkSmith (.lsd) drawings can be imported and exported, including open arcs. Close all curves before computing a knot or exporting a link complement. See the project README for the tested compatibility matrix.</p>
+    <h3>Sources &amp; credits</h3><p>Original KnotScape by Jim Hoste and Morwen Thistlethwaite, with Bruce Ewing, Kenneth Millett, Kenneth Stephenson, and Jeff Weeks. Hyperbolic routines use the SnapPea kernel maintained by the SnapPy project. SnapPy is GPL-2.0-or-later; its corresponding source and license accompany this app. The historical KnotScape notices are preserved. The port’s MIT license applies to new original code.</p>
+    <p class="help-links"><a href="https://web.math.utk.edu/~mthistle/knotscape.html" target="_blank" rel="noreferrer">Original KnotScape →</a><a href="data/doc/Rolfsen_DT.html" target="_blank">Rolfsen → DT dictionary →</a><a href="data/doc/DT_Rolfsen.html" target="_blank">DT → Rolfsen dictionary →</a><a href="sources.html">Source code &amp; licenses →</a></p>
+    <button id="offline-button">Make this app available offline</button><span id="offline-state" class="small muted"></span>
+  </div></dialog>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>
