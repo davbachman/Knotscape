@@ -1,6 +1,6 @@
 # KnotScape — browser workbench
 
-A modern browser port of Jim Hoste and Morwen Thistlethwaite's KnotScape 1.01. The responsive interface combines the original knot tables, editable diagrams, an invariant inspector, and a calculation notebook. Mathematical engines run in WebAssembly workers on your device. There is no computation server, account, analytics, or upload service.
+A modern browser port of Jim Hoste and Morwen Thistlethwaite's KnotScape 1.01. Port by David Bachman with Codex. The responsive interface combines the original knot tables, editable diagrams, an invariant inspector, and a calculation notebook. Mathematical engines run in WebAssembly workers on your device. There is no computation server, account, analytics, or upload service.
 
 **[Open the browser app](https://davbachman.github.io/Knotscape/)** · [Download the portable offline app](https://davbachman.github.io/Knotscape/knotscape.html)
 
