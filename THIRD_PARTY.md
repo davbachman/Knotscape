@@ -25,6 +25,18 @@ The kernel is compiled at double precision. The new `native/hyperbolic.c` adapts
 
 The build embeds the full corresponding source archive in the standalone app and ships it as `source.zip` alongside the static app. Keep that source and the notices with any binary redistribution. MIT-licensed original adapter/interface files do not remove GPL obligations on combined kernel binaries.
 
+## Two-bridge boundary slopes
+
+- Mathematical algorithm: Allen Hatcher and William Thurston, *Incompressible surfaces in 2-bridge knot complements*, Inventiones Mathematicae **79** (1985), 225–246.
+- Reference implementation: Nathan M. Dunfield, `two_bridge.py` (1998; Python 3 update 2020).
+- Upstream: https://github.com/NathanDunfield/montesinos
+- Pinned commit: `252b55a2ec7f1cc5874416624b01b24ba7299d37`.
+- License: public domain / CC0, as declared in the preserved upstream `vendor/two-bridge/README.rst`. The unchanged reference files `two_bridge.py` and `gcd_tools.py` accompany the source archive.
+
+`web/boundary-slopes.mjs` adapts the minimal Farey-edge-path enumeration to JavaScript with exact BigInt continued fractions, input validation, bounded depth-first traversal and JSON output. It computes slope `2·(twist − Seifert twist)` from the signed coefficients, identifying the unique all-even expansion. It is not a general normal-surface enumeration, nor a port of the unlocated Hoste–Shanahan CompuTop program. Jim Hoste suggested the feature following his work with Pat Shanahan.
+
+The selected-diagram adapter uses SnapPea's oriented two-bridge recognition and separately recognizes standard reduced `(2,n)` torus diagrams. Output slopes follow the peripheral orientation of the exported SnapPea triangulation. The legacy Goeritz signature fixes the torus diagram's handedness after simplification; it is not used to guess knot type. The 30-crossing limit on the kernel recognizer bounds its 32-bit rational arithmetic. Failure to recognize is reported as inconclusive.
+
 ## Emscripten and build tools
 
 The prebuilt runtime wrappers and WebAssembly binaries were generated using Emscripten 3.1.69 (LLVM 19). Emscripten runtime code is dual MIT/NCSA licensed; the distribution's complete copyright and runtime-library notices are preserved in `vendor/emscripten/NOTICE`. Emscripten is a build tool; no hosted compiler or runtime service is required.

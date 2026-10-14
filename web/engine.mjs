@@ -1,5 +1,6 @@
 import {validateDT, record, pairs, parsePolynomials, bivariate, COUNTS} from './core.mjs';
 import {classifySymmetryFixedSets} from './fixed-sets.mjs';
+import {boundarySlopes,torusTwoBridgeFraction} from './boundary-slopes.mjs';
 
 const fileCache = new Map();
 export async function fetchBytes(path) {
@@ -39,6 +40,7 @@ export function createEngine(load = fetchBytes) {
     if (message !== 'OK' && !(allowComposite && message.includes('prime diagram'))) throw new Error(message.replace(/^Line\s+\d+:\s*/, ''));
   }
   async function execute(action, payload) {
+    if (action === 'boundary-slopes-fraction') return boundarySlopes(payload.p,payload.q);
     if (action === 'link-triangulation') {
       if(typeof payload.klp!=='string'||payload.klp.length>20000||!/^[\d\s]+$/.test(payload.klp))throw new Error('Invalid link projection.');
       return (await run('hyperbolic',['5','/in','/out'],{'/in':payload.klp},['/out']))['/out'];
@@ -63,6 +65,25 @@ export function createEngine(load = fetchBytes) {
     await check(knot,action==='locate');
     const input=record(knot);
     if (action === 'validate') return {valid:true};
+    if (action === 'boundary-slopes') {
+      const invariants=await execute('invariants',{knot});
+      let fraction=torusTwoBridgeFraction(knot.dt,invariants.signature), recognition='Standard torus-knot diagram';
+      if(!fraction && knot.dt.length<=30) {
+        const out=await run('hyperbolic',['6','/in','/out'],{'/in':input},['/out']);
+        fraction=JSON.parse(out['/out']).twoBridge;
+        recognition='SnapPea canonical triangulation';
+      }
+      if(!fraction) {
+        const reduced=(await run('knotfind',['/in','/out'],{'/in':input},['/out']))['/out'].trim();
+        const parts=[...reduced.matchAll(/\{([^}]+)\}/g)];
+        if(parts.length===1) fraction=torusTwoBridgeFraction(parts[0][1].trim().split(/\s+/).map(Number).slice(1),invariants.signature);
+        recognition='Reduced torus-knot diagram';
+      }
+      if(!fraction) return {recognized:false,message:knot.dt.length>30
+        ? 'Automatic hyperbolic recognition is limited to 30 crossings. Enter a known two-bridge fraction below.'
+        : 'A two-bridge presentation was not recognized. This does not prove the knot is not two-bridge. Try Identify knot, or enter a known two-bridge fraction below.'};
+      return {...boundarySlopes(fraction.p,fraction.q),recognized:true,recognition};
+    }
     if (action === 'diagram' || action === 'postscript') {
       const out=await run('draw',['/in','/triang','/packing','/vertices','/segments'],{'/in':input},['/vertices','/segments']);
       if (action === 'postscript') return (await run('draw2ps',['/in','/segments','/out'],{'/in':input,'/segments':out['/segments']},['/out']))['/out'];

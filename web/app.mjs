@@ -8,6 +8,7 @@ const svgNS='http://www.w3.org/2000/svg';
 const names={'3a1':'Trefoil knot','4a1':'Figure-eight knot','5a1':'Three-twist knot','5a2':'Cinquefoil knot'};
 const state={knot:{dt:[4,6,8,2],id:1,name:'4a1'},knots:[],table:{crossings:4,type:'a',first:1},view:'diagram',analysis:'polynomials',zoom:1,pan:[0,0],labels:false,results:new Map(),notebook:[],batchPage:0,drawing:{points:[],closed:false,switched:[],components:[]}};
 const jobs=new Map(), inflight=new Map();let jobId=0,tableVersion=0;
+const fractionCalculation={p:'2',q:'5',result:null,error:null,pending:false};
 const key=k=>k.dt.join(',');
 const el=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;};
 const svg=(tag,attrs={})=>{const n=document.createElementNS(svgNS,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);return n;};
@@ -32,7 +33,7 @@ async function ensure(action,extra={}){
   const knot=structuredClone(state.knot),kkey=key(knot),r=results(knot),id=kkey+':'+action+':'+JSON.stringify(extra);
   if(r[action] && !r[action].error && (action!=='cusp'||r[action].cutoff===Number($('cutoff').value)))return r[action];
   if(inflight.has(id))return inflight.get(id);
-  const labels={diagram:'Laying out the knot…',invariants:'Computing determinant and signature…',polynomials:'Computing Alexander, Jones, and HOMFLY-PT…',kauffman:'Computing the Kauffman polynomial…',geometry:'Solving the hyperbolic structure…',symmetry:'Finding the symmetry group…',cusp:'Computing cusp geometry…',group:'Computing the fundamental group…'};
+  const labels={diagram:'Laying out the knot…',invariants:'Computing determinant and signature…',polynomials:'Computing Alexander, Jones, and HOMFLY-PT…',kauffman:'Computing the Kauffman polynomial…',geometry:'Solving the hyperbolic structure…',symmetry:'Finding the symmetry group…',cusp:'Computing cusp geometry…',group:'Computing the fundamental group…','boundary-slopes':'Recognizing the two-bridge knot and computing boundary slopes…'};
   const promise=job(action,{knot,...extra},labels[action]||'Computing…').then(value=>{r[action]=value;if(action==='cusp')r[action].cutoff=Number(extra.cutoff||0.15);return value;}).catch(error=>{r[action]={error:error.message};throw error;}).finally(()=>{inflight.delete(id);if(key(state.knot)===kkey){renderStats();renderAnalysis();if(action==='diagram'||action==='cusp')renderScene();}});
   inflight.set(id,promise);return promise;
 }
@@ -45,17 +46,63 @@ async function loadTable(){const version=++tableVersion,{crossings:n,type}=state
   try{const knots=await job('table',{crossings:n,type,first:state.table.first,last},`Opening the ${n}-crossing table…`);if(version!==tableVersion)return;$('knot-list').replaceChildren();for(const k of knots){const b=button('',()=>loadKnot(k));b.dataset.name=k.name;b.append(el('span',k.name),el('small',names[k.name]||'→'));$('knot-list').append(b);}renderTableSelection();}catch(error){if(version===tableVersion)$('knot-list').replaceChildren(el('p',error.message,'result-error'));report(error);}
 }
 function download(filename,content,type='text/plain'){const url=URL.createObjectURL(new Blob([content],{type}));const a=el('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);}
-function note(title,value){state.notebook.unshift({title,knot:state.knot.name,dt:[...state.knot.dt],time:new Date().toISOString(),value});renderNotebook();}
+function note(title,value,knot=state.knot){state.notebook.unshift({title,knot:knot.name,dt:[...(knot.dt||[])],time:new Date().toISOString(),value});renderNotebook();}
 function renderNotebook(){$('results-panel').hidden=!state.notebook.length;$('notebook').replaceChildren();for(const item of state.notebook){const wrap=el('article',undefined,'notebook-entry');wrap.append(el('h4',`${item.knot} · ${item.title}`),el('pre',typeof item.value==='string'?item.value:JSON.stringify(item.value,null,2)));$('notebook').append(wrap);}}
 function formula(text){const n=el('div',undefined,'formula');for(const part of String(text).split(/(\^-?\d+(?:\.\d+)?)/g)){n.append(part.startsWith('^')?el('sup',part.slice(1)):document.createTextNode(part));}return n;}
 function block(title,value,hint){const b=el('section',undefined,'result-block'),t=el('div',undefined,'result-title');t.append(el('span',title));if(hint)t.append(el('small',hint));b.append(t,typeof value==='string'?formula(value):value);return b;}
 function rawDetails(raw){const d=el('details');d.append(el('summary','Original coefficient output'),el('pre',typeof raw==='string'?raw:Object.entries(raw).map(([k,v])=>k.toUpperCase()+'\n'+v).join('\n')));return d;}
 function loading(action,message){const w=el('div');w.append(el('p',message,'muted small'));const r=results()[action];if(r?.error){w.append(el('p',r.error,'result-error'),button('Try again',()=>ensure(action).catch(report)));}return w;}
-function renderAnalysis(){const content=$('analysis-content');content.replaceChildren();const r=results();
+function slopeResult(result,fromDiagram=false){
+  const box=el('section',undefined,'slope-result');
+  box.append(block('Boundary slopes',result.slopes.join(', '),`${result.slopes.length} distinct`),el('p',`Two-bridge knot K(${result.p}/${result.q}). Slope 0 is the Seifert longitude.`,'small'));
+  if(fromDiagram)box.append(el('p','Signs use the orientation of the exported SnapPea complement. Mirror negates all slopes.','muted small'));
+  const details=el('details'),list=el('div',undefined,'slope-expansions');
+  details.append(el('summary',`${result.surfaces.length} branched surfaces · continued fractions`),el('p','Each row carries essential surfaces. Coefficients use p/q ≡ 1/(b₁ − 1/(b₂ − …)) modulo 1. The unique all-even expansion gives the Seifert slope.','muted small'));
+  for(const s of result.surfaces.slice(0,100)) {
+    const row=el('div',undefined,'slope-expansion');
+    row.append(el('strong',String(s.slope)),el('code','['+s.expansion.join(', ')+']'),el('small',s.seifert?'Seifert':''));list.append(row);
+  }
+  details.append(list);
+  if(result.surfaces.length>100)details.append(el('p','Showing the first 100 rows. Download the result for all continued fractions.','muted small'));
+  box.append(details,button('Download slopes (.json)',()=>download(`boundary-slopes-${result.p}-${result.q}.json`,JSON.stringify(result,null,2),'application/json')),
+    button('Add slopes to notebook',()=>note('Boundary slopes',result,fromDiagram?state.knot:{name:`K(${result.p}/${result.q})`})));
+  return box;
+}
+function renderBoundarySlopes(content,r){
+  content.append(el('h3','Two-bridge boundary slopes'),el('p','Slopes of essential surfaces, computed by the Hatcher–Thurston algorithm.','muted small'));
+  const current=el('section',undefined,'result-block'),result=r['boundary-slopes'];
+  current.append(el('div','Current diagram','result-title'));
+  if(!result||result.error)current.append(loading('boundary-slopes','Looking for a two-bridge presentation…'));
+  else if(!result.recognized)current.append(el('p',result.message,'small'));
+  else current.append(slopeResult(result,true));
+  content.append(current);
+  const form=el('form',undefined,'fraction-form'),row=el('div',undefined,'fraction-fields');
+  form.append(el('h3','From a two-bridge fraction'),el('p','Compute K(p/q) directly. Use 0 < |p| < q with odd reduced denominator q. A negative p selects the mirror. This calculation is independent of the current diagram.','muted small'));
+  for(const name of ['p','q']){
+    const label=el('label',name),input=el('input');input.id='slope-'+name;input.name=name;input.type='text';input.inputMode=name==='q'?'numeric':'text';input.required=true;input.maxLength=101;input.value=fractionCalculation[name];input.setAttribute('aria-label','Two-bridge '+(name==='p'?'numerator p':'denominator q'));input.oninput=()=>fractionCalculation[name]=input.value;label.append(input);row.append(label);
+  }
+  const submit=el('button',fractionCalculation.pending?'Computing…':'Compute fraction','button-primary');submit.type='submit';submit.disabled=fractionCalculation.pending;
+  form.append(row,submit);
+  form.onsubmit=async event=>{
+    event.preventDefault();if(fractionCalculation.pending)return;
+    fractionCalculation.pending=true;fractionCalculation.error=null;fractionCalculation.result=null;renderAnalysis();
+    try{fractionCalculation.result=await job('boundary-slopes-fraction',{p:fractionCalculation.p,q:fractionCalculation.q},'Computing exact boundary slopes…');}
+    catch(error){if(error.message!=='Cancelled')fractionCalculation.error=error.message;}
+    finally{fractionCalculation.pending=false;if(state.analysis==='boundary-slopes')renderAnalysis();}
+  };
+  if(fractionCalculation.error){const error=el('p',fractionCalculation.error,'result-error');error.setAttribute('role','alert');form.append(error);}
+  content.append(form);
+  if(fractionCalculation.result){const output=el('div',undefined,'fraction-result');output.setAttribute('aria-live','polite');output.append(slopeResult(fractionCalculation.result));content.append(output);}
+  content.append(el('p','Suggested by Jim Hoste, following his work with Pat Shanahan. This implementation adapts Nathan Dunfield’s public-domain two-bridge program.','muted small'));
+}
+function renderAnalysis(){const focused=document.activeElement,focusId=/^slope-[pq]$/.test(focused?.id||'')?focused.id:null,selection=focusId?[focused.selectionStart,focused.selectionEnd]:null;const content=$('analysis-content');content.replaceChildren();const r=results();
   if(state.analysis==='polynomials'){
     const p=r.polynomials;
     if(p&&!p.error){content.append(block('Alexander',p.alexander,'Δ(t)'),block('Jones',p.jones,'V(t)'),block('HOMFLY-PT',p.homfly,'P(v, z)'),rawDetails(p.raw));}else content.append(loading('polynomials','Polynomial coefficient calculations run on this device.'));
     if(r.kauffman&&!r.kauffman.error){content.append(block('Kauffman',r.kauffman.polynomial,'F(a, z)'),rawDetails(r.kauffman.raw));}else{const b=block('Kauffman',el('p','The two-variable Kauffman polynomial can take longer to compute.'),'F(a, z)');b.append(button('Compute Kauffman',()=>ensure('kauffman').catch(report)));if(r.kauffman?.error)b.append(el('p',r.kauffman.error,'result-error'));content.append(b);}
+  }else if(state.analysis==='boundary-slopes'){
+    renderBoundarySlopes(content,r);
+    if(focusId){$(focusId).focus({preventScroll:true});$(focusId).setSelectionRange(...selection);}
   }else if(state.analysis==='geometry'){
     const g=r.geometry;if(!g||g.error){content.append(loading('geometry','Computing the complete hyperbolic structure…'));return;}
     if(g.volume===undefined){content.append(block('Hyperbolic structure',el('p','No geometric solution was found. This can occur for a nonhyperbolic knot, or when the numerical solver fails.')));return;}

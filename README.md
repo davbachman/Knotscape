@@ -1,6 +1,6 @@
 # KnotScape — browser workbench
 
-A modern browser port of Jim Hoste and Morwen Thistlethwaite's KnotScape 1.01. Port by David Bachman with Codex. The responsive interface combines the original knot tables, editable diagrams, an invariant inspector, and a calculation notebook. Mathematical engines run in WebAssembly workers on your device. There is no computation server, account, analytics, or upload service.
+A modern browser port of Jim Hoste and Morwen Thistlethwaite's KnotScape 1.01. Port by David Bachman with Codex. The responsive interface combines the original knot tables, editable diagrams, an invariant inspector, and a calculation notebook. Calculations run in browser workers on your device, using WebAssembly and JavaScript. There is no computation server, account, analytics, or upload service.
 
 **[Open the browser app](https://davbachman.github.io/Knotscape/)** · [Download the portable offline app](https://davbachman.github.io/Knotscape/knotscape.html)
 
@@ -41,6 +41,14 @@ Click **Identify knot** to simplify a projection, decompose a connected sum and 
 
 The inspector provides polynomial, geometry, symmetry and group calculations. Expand an individual symmetry to see its fixed sets and cusp action. Diagrams, horoballs, canonical cusp sections and Ford domains support zoom and SVG/PostScript export. For links, the drawing editor exports Ewing–Millett codes and SnapPea triangulations, as the original LinkSmith did; knot invariants require a single component.
 
+Choose **Slopes** for the boundary slopes of a two-bridge knot. The app recognizes the current diagram when possible, or you can use the independent **From a two-bridge fraction** calculator. Enter the Hatcher–Thurston fraction `p/q` with `0 < |p| < q` and odd reduced denominator: `2/5` gives the figure-eight slopes `−4, 0, 4`; `1/3` gives `0, 6`. Negative `p` mirrors the knot and negates the slopes. Fractions are reduced automatically; two-component links (even reduced denominator) are rejected. Slope `r` represents `r·meridian + longitude`, with 0 the Seifert longitude. For the current DT diagram, signs agree with the orientation of this app's exported SnapPea complement (the positive DT trefoil `4 6 2` has slopes `−6, 0`).
+
+Expand a slope result to inspect the continued fractions of the carrying branched surfaces, including the unique all-even Seifert expansion. Distinct branched surfaces may give the same slope. Download the full result as JSON or add it to the notebook. Manual fraction results are labeled separately from the current diagram and do not change it.
+
+The slope computation uses exact `BigInt` arithmetic and the Hatcher–Thurston minimal Farey-path algorithm, adapted from Nathan Dunfield's public-domain program. Automatic hyperbolic recognition uses SnapPea's canonical triangulation; standard and simplified `(2,n)` torus-knot diagrams are also recognized. An unsuccessful recognition is inconclusive. Automatic hyperbolic recognition is limited to 30 diagram crossings to keep the kernel's 32-bit rational arithmetic within range; the direct fraction calculator accepts integers of up to 100 digits. Enumeration stops with an explicit error, without returning a partial slope set, at 10,000 branched surfaces, 100,000 total coefficients, or 200,000 path-search steps. The interface shows the first 100 continued-fraction rows; JSON downloads include them all. These calculations run in cancellable browser workers and are included in both offline distributions.
+
+Jim Hoste suggested this addition following his work with Pat Shanahan on their CompuTop boundary-slope program. Their original program has not been located for this implementation; this is an independently sourced addition using Dunfield's implementation of the published algorithm.
+
 A workspace automatically saves its codes and drawing in this browser's local storage. **Save workspace** downloads a JSON backup; **Import** restores it. Calculations are not included in automatic saves: download results or the calculation notebook to retain them. Large table ranges can be added to a workspace; workspace buttons are paginated. Batch polynomial calculations run sequentially and may be cancelled.
 
 ## Compatibility and implementation
@@ -76,6 +84,8 @@ python3 tests/browser.py
 ```
 
 Tests cover known trefoil/figure-eight invariants and mirrors, table endpoints through 16 crossings, identification and connected sums, braid conversion, realizability, numerical geometry, symmetry maps and fixed loci, group representations, original drawing-file round trips, and link triangulations. Browser checks cover desktop/mobile layouts, editor/import/export flows, the calculation inspector, standalone offline computation and offline cache installation. Screenshots are written to `test-results/`. Six additional knot complements, including 16n1008906, were cross-checked against Python SnapPy for volume and symmetry order; legacy trefoil and four-component drawing exports were also loaded in SnapPy.
+
+Boundary-slope tests compare 791 cases with the preserved independent Python reference, check mirrors and exact continued-fraction identities, reject links and invalid input, exercise resource limits, and verify diagram recognition and standalone offline calculations. Run `python3 scripts/boundary_slope_fixtures.py` to regenerate the reference fixture from `vendor/two-bridge/`.
 
 ## Rebuild the mathematical engines
 

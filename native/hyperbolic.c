@@ -104,7 +104,17 @@ int main(int argc, char **argv) {
     out = fopen(argv[3], "w");
     solution = get_complete_solution_type(m);
     fprintf(out, "{\"solutionType\":%d,\"tetrahedra\":%d", solution, get_num_tetrahedra(m));
-    if (mode == 4) {
+    if (mode == 6) {
+        Boolean recognized = FALSE;
+        long int p = 0, q = 0;
+        if ((solution == geometric_solution || solution == nongeometric_solution)
+            && proto_canonize(m) == func_OK)
+            two_bridge(m, &recognized, &p, &q);
+        if (recognized && q > 1 && q % 2 != 0 && p != 0 && p > -q && p < q)
+            fprintf(out, ",\"twoBridge\":{\"p\":\"%ld\",\"q\":\"%ld\"}", p, q);
+        else
+            fputs(",\"twoBridge\":null", out);
+    } else if (mode == 4) {
         GroupPresentation *g = fundamental_group(m, 1, 1, 1, 1);
         fprintf(out, ",\"generators\":%d,\"relations\":[", fg_get_num_generators(g));
         for (i = 0; i < fg_get_num_relations(g); i++) {
